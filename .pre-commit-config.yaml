@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.1.0
+    hooks:
+        - id: check-toml
+        - id: check-yaml
+        - id: end-of-file-fixer
+        - id: trailing-whitespace
+        - id: check-added-large-files
+  - repo: https://github.com/python-poetry/poetry
+    rev: '2.0.1'  # add version here
+    hooks:
+        - id: poetry-lock
+        - id: poetry-check
+        - id: poetry-install
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.9.3
+    hooks:
+    # Run the linter.
+        - id: ruff
+          types_or: [ python, pyi ]
+          args: [ --fix ]
+      # Run the formatter.
+        - id: ruff-format
+          types_or: [ python, pyi ]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+        - id: mypy
+          args: [ "--follow-untyped-imports" ]

@@ -1,0 +1,2 @@
+typing:
+	poetry run pyright
