@@ -22,6 +22,19 @@ mypy = "^1.15.0"
 pytest = "^8.3.4"
 pytest-cov = "^6.0.0"
 
+[tool.ruff]
+include = ["pyproject.toml", "src/**/*.py"]
+
+[tool.ruff.format]
+exclude = ["*.pyi"]
+
+[tool.pytest.ini_options]
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+    "integration",
+]
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

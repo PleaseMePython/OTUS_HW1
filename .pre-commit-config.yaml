@@ -17,15 +17,16 @@ repos:
     # Ruff version.
     rev: v0.9.3
     hooks:
+    # Run the formatter.
+        - id: ruff-format
+          types_or: [ python, pyi ]
     # Run the linter.
         - id: ruff
           types_or: [ python, pyi ]
           args: [ --fix ]
-      # Run the formatter.
-        - id: ruff-format
-          types_or: [ python, pyi ]
+
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.14.1
     hooks:
         - id: mypy
-          args: [ "--follow-untyped-imports" ]
+          args: [--follow-untyped-imports, --ignore-missing-imports]
