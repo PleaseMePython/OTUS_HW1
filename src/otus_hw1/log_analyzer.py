@@ -1,21 +1,19 @@
 """Анализатор логов."""
 
-import os
-import re
-import gzip
 import argparse
 import configparser
+import gzip
 import json
+import os
+import re
 import sys
+from collections.abc import Generator, Mapping
+from dataclasses import asdict, dataclass
+from datetime import MINYEAR, date
 from pathlib import Path
-
-from collections.abc import Generator
-from dataclasses import dataclass, asdict
-from datetime import date, MINYEAR
-from typing import NamedTuple, Dict, List, Any
 from statistics import mean, median
 from string import Template
-
+from typing import Any, Dict, List, NamedTuple
 
 import structlog
 
@@ -26,8 +24,11 @@ import structlog
 #                     '"$http_X_REQUEST_ID" "$http_X_RB_USER" '
 #                     '$request_time';
 
-config = {
-    "REPORT_SIZE": 1000,
+type ConfigMapping = Mapping[str, str]
+type ConfigType = Dict[str, str]
+
+config: ConfigType = {
+    "REPORT_SIZE": "1000",
     "REPORT_DIR": "./reports",
     "LOG_DIR": "./log",
     "ERROR_FILE": "./errors.log",
@@ -135,7 +136,7 @@ def get_log_file_name(path: Path) -> FileInfo:
     return result
 
 
-def get_config(default_config: Dict) -> Dict:
+def get_config(default_config: ConfigMapping) -> ConfigType:
     """Получение конфигурации.
 
     :arg default_config - конфигурация из глобальной переменной
@@ -154,7 +155,7 @@ def get_config(default_config: Dict) -> Dict:
     cnf_parser["DEFAULT"] = default_config
     cnf_file_path = get_project_root().joinpath(cnf_file_name)
     cnf_parser.read(cnf_file_path, encoding="utf-8")
-    cnf_dict = dict(cnf_parser["DEFAULT"])
+    cnf_dict: ConfigType = dict(cnf_parser["DEFAULT"])
     return cnf_dict
 
 
@@ -181,7 +182,7 @@ def extract_url(log_line: str) -> str:
     if url_off_start != -1 and url_off_end != -1:
         return log_line[url_off_start + url_start_shift : url_off_end]
     else:
-        err_logger.error("URL value not found")
+        err_logger.error("URL value not found", start=log_line[:15])
         return ""
 
 
@@ -200,13 +201,13 @@ def extract_time(log_line: str) -> float:
         try:
             return float(log_line[time_off_start:])
         except ValueError:
-            err_logger.error("Time value is not float")
+            err_logger.error("Time value is not float", start=log_line[:15])
             return 0
         except OverflowError:
-            err_logger.error("Time value overflow")
+            err_logger.error("Time value overflow", start=log_line[:15])
             return 0
     else:
-        err_logger.error("Time value not found")
+        err_logger.error("Time value not found", start=log_line[:15])
         return 0
 
 
@@ -240,6 +241,8 @@ def process_log(file_attr: FileInfo) -> LogInfo:
     url_count = 0
     url_total_time = float(0)
     for url_info in parse_log_file(file_attr):
+        if url_info.url == "" or url_info.requestTime == 0:
+            continue
         # Счетчик обращений к серверу
         url_count += 1
         # Общее время обращения к серверу
@@ -284,7 +287,7 @@ def gather_stats(log_info: LogInfo, report_size: int) -> UrlStatsTab:
     return url_stats[:report_size]
 
 
-def round_floats(src):
+def round_floats(src: Any) -> Any:
     """Округление float при преобразовании в JSON.
 
     :arg src - исходные данные
@@ -327,6 +330,8 @@ def write_report(
     # json.encoder.FLOAT_REPR = lambda o: format(o, '.3f')
     tab_json = json.dumps(round_floats(src_for_json), default=str)
 
+    report_file_name.parent.mkdir(exist_ok=True)
+
     try:
         with open(report_file_name, mode="wt", encoding="utf-8") as rep_file:
             with open(template_file_name, mode="rt", encoding="utf-8") as rep_tmpl:
@@ -340,10 +345,10 @@ def write_report(
         err_logger.error("No permission on file", path=pe.filename)
         return
 
-    err_logger.info("Report ready", path=report_file_name)
+    err_logger.info("Report ready", path=str(report_file_name))
 
 
-def analyse_logs(actual_config: Dict) -> None:
+def analyse_logs(actual_config: ConfigType) -> None:
     """Основной алгоритм.
 
     :arg actual_config - конфигурация по-умолчанию
@@ -351,9 +356,9 @@ def analyse_logs(actual_config: Dict) -> None:
     err_logger = structlog.stdlib.get_logger()
     project_root = get_project_root()
     # Имя последнего лога
-    file_attr = get_log_file_name(project_root.joinpath(actual_config["log_dir"]))
+    file_attr = get_log_file_name(project_root.joinpath(Path(actual_config["log_dir"])))
     report_file_name = get_report_file_name(
-        project_root.joinpath(actual_config["report_dir"]), file_attr.f_date
+        project_root.joinpath(Path(actual_config["report_dir"])), file_attr.f_date
     )
     if file_attr.name == "":
         # Ничего не нашли
@@ -377,7 +382,7 @@ def analyse_logs(actual_config: Dict) -> None:
         )
 
 
-def setup_err_log(actual_config: Dict) -> Any:
+def setup_err_log(actual_config: ConfigType) -> Any:
     """Основной алгоритм.
 
     :arg actual_config - конфигурация по-умолчанию
@@ -428,7 +433,7 @@ def setup_err_log(actual_config: Dict) -> Any:
     return logger
 
 
-def main(default_config: Dict) -> None:
+def main(default_config: ConfigType) -> None:
     """Основной алгоритм.
 
     :arg default_config - конфигурация по-умолчанию
