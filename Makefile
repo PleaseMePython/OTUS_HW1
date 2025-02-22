@@ -1,7 +1,10 @@
 setup:
 	pip install poetry
+	poetry env activate
 	poetry lock
 	poetry install
+run:
+	python -m otus_hw1.log_analyzer
 lint:
 	poetry run ruff check src
 format:
